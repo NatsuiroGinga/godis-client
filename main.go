@@ -3,8 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"io"
-	"net"
+	"os"
 
 	"godis-client/client"
 	"godis-client/lib/logger"
@@ -13,6 +12,7 @@ import (
 )
 
 func main() {
+	// 1. connect Server
 	godisClient, err := client.NewClient("127.0.0.1:6379")
 	if err != nil {
 		logger.Error(err)
@@ -21,7 +21,7 @@ func main() {
 
 	localAddr := godisClient.Conn.LocalAddr()
 	logger.Info("localAddr:", localAddr)
-	listener, err := net.ListenTCP("tcp", localAddr.(*net.TCPAddr))
+	/* listener, err := net.ListenTCP("tcp", localAddr.(*net.TCPAddr))
 	if err != nil {
 		logger.Error(err)
 	}
@@ -30,8 +30,8 @@ func main() {
 	if err != nil {
 		logger.Error(err)
 	}
-	logger.Info("conn:", conn)
-	reader := bufio.NewReader(conn)
+	logger.Info("conn:", conn) */
+	/* reader := bufio.NewReader(conn)
 
 	for {
 		readBytes, err := reader.ReadBytes('\n')
@@ -48,16 +48,33 @@ func main() {
 		logger.Info("readBytes:", string(readBytes))
 		// trim suffix '\n'
 		readBytes = readBytes[:len(readBytes)-1]
+		cmd := utils.ToCmdLine3(readBytes) */
+
+	// 2. receiver cmdline
+	scanner := bufio.NewScanner(os.Stdin)
+	writer := bufio.NewWriter(os.Stdout)
+
+	for scanner.Scan() {
+		// 打印前缀
+
+		readBytes := scanner.Bytes()
 		cmd := utils.ToCmdLine3(readBytes)
 		r := godisClient.Send(cmd)
 		stream := parser.ParseStream(bytes.NewReader(r.Bytes()))
 		payload := <-stream
 
-		if err := client.Response(conn, payload.Data); err != nil {
+		if err := client.Response(writer, payload.Data); err != nil {
 			logger.Error(err)
-			return
+			continue
 		}
-		
-		logger.Info("response success")
+
+		writer.Flush()
 	}
+	if err := scanner.Err(); err != nil {
+		logger.Error(err)
+		return
+	}
+
+	logger.Info("connection closed")
+	// }
 }
