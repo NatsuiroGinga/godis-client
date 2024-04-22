@@ -19,9 +19,9 @@ func main() {
 		logger.Error(err)
 	}
 	godisClient.Start()
+	logger.Info("connect server success:", "127.0.0.1:6379")
 
 	localAddr := godisClient.Conn.LocalAddr()
-	logger.Info("localAddr:", localAddr)
 	listener, err := net.ListenTCP("tcp", localAddr.(*net.TCPAddr))
 	if err != nil {
 		logger.Error(err)
@@ -35,7 +35,8 @@ func main() {
 	reader := bufio.NewReader(conn)
 
 	for {
-		readBytes, err := reader.ReadBytes('\n')
+		var readBytes []byte
+		readBytes, err = reader.ReadBytes('\n')
 		// handle the error
 		if err != nil {
 			if err == io.EOF { // if client closed, close the connection
@@ -55,7 +56,7 @@ func main() {
 		stream := parser.ParseStream(bytes.NewReader(r.Bytes()))
 		payload := <-stream
 
-		if err := client.Response(conn, payload.Data); err != nil {
+		if err = client.Response(conn, payload.Data); err != nil {
 			logger.Error(err)
 			return
 		}
