@@ -5,7 +5,7 @@ import (
 )
 
 func ToCmdLine3(cmd []byte) [][]byte {
-	if cmd[len(cmd)-1] == '\n' {
+	if len(cmd) > 0 && cmd[len(cmd)-1] == '\n' {
 		cmd = cmd[:len(cmd)-1]
 	}
 	// trim front and back space

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"runtime/debug"
 	"strconv"
@@ -147,19 +148,21 @@ func send(rs *readState, ch chan<- *Payload, err error, data resp.Reply) {
 //
 // 如果有$开头, 则表示严格按照bulkLen+2字节数读取数据
 func readLine(br *bufio.Reader, rs *readState) (line []byte, hasIOErr bool, err error) {
-	lineStr := utils.Bytes2String(line)
-
 	if rs.bulkLen == 0 { // 如果没有$开头, 则表示以\r\n结尾读取一行数据
 		line, err = br.ReadBytes('\n')
 
 		if err != nil {
-			logger.Error("readLine error:", lineStr)
+			if errors.Is(err, io.EOF) {
+				return nil, true, io.EOF
+			}
+
+			logger.Error("readLine error:", err)
 			return nil, true, err
 		}
 
 		if len(line) == 0 || line[len(line)-2] != '\r' { // 如果数据不以回车换行符结尾, 则返回错误
-			logger.Error("readLine error:", lineStr)
-			return nil, false, reply.NewProtocolErrReply(lineStr)
+			logger.Error("readLine error:", err)
+			return nil, false, reply.NewProtocolErrReply(utils.Bytes2String(line))
 		}
 
 	} else { // 如果有$开头, 则表示严格按照bulkLen+2字节数读取数据
@@ -171,7 +174,7 @@ func readLine(br *bufio.Reader, rs *readState) (line []byte, hasIOErr bool, err 
 		}
 
 		if len(line) == 0 || line[len(line)-2] != '\r' || line[len(line)-1] != '\n' { // 如果数据不以回车换行符结尾, 则返回错误
-			return nil, false, reply.NewProtocolErrReply(lineStr)
+			return nil, false, reply.NewProtocolErrReply(utils.Bytes2String(line))
 		}
 
 		rs.bulkLen = 0 // 重置bulkLen
