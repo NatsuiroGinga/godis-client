@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"io"
-	"net"
+	"fmt"
+	"os"
 
 	"godis-client/client"
 	"godis-client/lib/logger"
@@ -14,51 +14,47 @@ import (
 
 func main() {
 	// 1. connect Server
-	godisClient, err := client.NewClient("127.0.0.1:6379")
+	godisClient, err := client.NewClient(client.ServerAddr)
 	if err != nil {
 		logger.Error(err)
 	}
 	godisClient.Start()
-	logger.Info("connect server success:", "127.0.0.1:6379")
-
+	logger.Info("connect server:", client.ServerAddr, "success")
 	localAddr := godisClient.Conn.LocalAddr()
-	listener, err := net.ListenTCP("tcp", localAddr.(*net.TCPAddr))
-	if err != nil {
-		logger.Error(err)
-	}
+	logger.Info("local address is:", localAddr)
 
-	conn, err := listener.Accept()
-	if err != nil {
-		logger.Error(err)
-	}
-	logger.Info("connect success:", conn.LocalAddr())
-	reader := bufio.NewReader(conn)
+	// 2. scan command from cmdline
+	scanner := bufio.NewScanner(os.Stdin)
+	writer := bufio.NewWriter(os.Stdout)
 
 	for {
-		var readBytes []byte
-		readBytes, err = reader.ReadBytes('\n')
-		// handle the error
-		if err != nil {
-			if err == io.EOF { // if client closed, close the connection
-				logger.Info("client closed")
-			} else {
-				logger.Warn("read error:", err)
-			}
+		fmt.Print(">> ")
 
-			return
+		if !scanner.Scan() {
+			break
 		}
-		logger.Debug("command:", string(readBytes))
-		// trim suffix '\n'
-		readBytes = readBytes[:len(readBytes)-1]
-		cmd := utils.ToCmdLine3(readBytes)
 
+		// 2.1 read bytes
+		readBytes := scanner.Bytes()
+		cmd := utils.ToCmdLine3(readBytes)
+		// 2.2 send command to server
 		r := godisClient.Send(cmd)
+		// 2.3 parse reply from server
 		stream := parser.ParseStream(bytes.NewReader(r.Bytes()))
 		payload := <-stream
-
-		if err = client.Response(conn, payload.Data); err != nil {
+		// 2.4 write to user cmd
+		if err = client.Response(writer, payload.Data); err != nil {
 			logger.Error(err)
 			return
 		}
+		err = writer.Flush()
+		if err != nil {
+			return
+		}
+	}
+	// 3. scan end
+	if err = scanner.Err(); err != nil {
+		logger.Error(err)
+		return
 	}
 }

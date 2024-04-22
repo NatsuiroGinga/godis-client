@@ -9,8 +9,14 @@ import (
 	"godis-client/resp/reply"
 )
 
+const ServerAddr = "127.0.0.1:6379"
+
 // Response 把resp格式的reply转化成阅读性高的消息写回给用户
+//
+// 返回错误信息
 func Response(writer io.Writer, data resp.Reply) (err error) {
+	// _, err = fmt.Fprintln(writer)
+
 	switch data := data.(type) {
 	case *reply.MultiBulkReply:
 		for i, b := range data.Args {
