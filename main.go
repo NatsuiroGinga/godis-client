@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	// 1. connect Server
 	godisClient, err := client.NewClient("127.0.0.1:6379")
 	if err != nil {
 		logger.Error(err)
@@ -49,6 +50,7 @@ func main() {
 		// trim suffix '\n'
 		readBytes = readBytes[:len(readBytes)-1]
 		cmd := utils.ToCmdLine3(readBytes)
+
 		r := godisClient.Send(cmd)
 		stream := parser.ParseStream(bytes.NewReader(r.Bytes()))
 		payload := <-stream
