@@ -49,7 +49,6 @@ func main() {
 		}
 		logger.Debug("command:", string(readBytes))
 		// trim suffix '\n'
-		readBytes = readBytes[:len(readBytes)-1]
 		cmd := utils.ToCmdLine3(readBytes)
 
 		r := godisClient.Send(cmd)
